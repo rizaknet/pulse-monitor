@@ -33,6 +33,10 @@ enum Theme {
     static let apps = dynColor(0x0A84FF, 0x409CFF)
     static let agents = dynColor(0x9333EA, 0xC084FC)
 
+    static let claude = dynColor(0xD97757, 0xEB8A6B)
+    static let codex = dynColor(0x10A37F, 0x1DBE96)
+    static let gemini = dynColor(0x1A73E8, 0x4285F4)
+
     static let red = dynColor(0xE0352B, 0xFF5A50)
     static let orange = dynColor(0xF08A24, 0xFF9F40)
     static let green = dynColor(0x248A3D, 0x30D158)

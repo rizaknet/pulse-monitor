@@ -192,6 +192,21 @@ public struct AgentSession: Sendable, Identifiable {
     }
 }
 
+public struct AgentQuota: Sendable, Identifiable {
+    public let id: String
+    public let provider: String           // "Claude", "Codex", "Gemini"
+    public let plan: String               // "Claude Pro", "ChatGPT Plus", "Google AI Pro"
+    public let percentRemaining: Int      // e.g. 97, 100, 98
+    public let headline: String           // e.g. "Fresh week · 3% used", "5-hour session: 100% left", "5-hour limit: 98% remaining"
+    public let sessionLimitText: String   // e.g. "Resets at 3:00 PM · 6% used"
+    public let weeklyLimitText: String    // e.g. "Resets Sun 2:00 PM · 3% used"
+
+    public init(id: String, provider: String, plan: String, percentRemaining: Int, headline: String, sessionLimitText: String, weeklyLimitText: String) {
+        self.id = id; self.provider = provider; self.plan = plan; self.percentRemaining = percentRemaining
+        self.headline = headline; self.sessionLimitText = sessionLimitText; self.weeklyLimitText = weeklyLimitText
+    }
+}
+
 /// Slow-lane data (ports, projects, …), refreshed every ~10 s.
 public struct DevState: Sendable {
     public var projects: [DevProject] = []
@@ -199,6 +214,7 @@ public struct DevState: Sendable {
     public var idleServers: [IdleServer] = []
     public var blockers: [SleepBlocker] = []
     public var agents: [AgentSession] = []
+    public var quotas: [AgentQuota] = []
     public init() {}
 }
 
