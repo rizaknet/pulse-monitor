@@ -68,12 +68,14 @@ public actor SamplingEngine {
             let (projects, ports) = devProbe.sample(processes: procs)
             idleServers = idleWatcher.ingest(ports: ports, processes: procs, at: now)
             let blockers = PowerAssertions.current()
+            let agents = AgentsProbe.sample(processes: procs, ports: ports)
 
             var dev = DevState()
             dev.projects = projects
             dev.ports = ports
             dev.idleServers = idleServers
             dev.blockers = blockers
+            dev.agents = agents
             snapshot.dev = dev
         }
 

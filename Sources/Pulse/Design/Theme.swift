@@ -31,6 +31,7 @@ enum Theme {
     static let battery = dynColor(0x1E9E3A, 0x34C759)
     static let projects = dynColor(0xEB6834, 0xF07A45)
     static let apps = dynColor(0x0A84FF, 0x409CFF)
+    static let agents = dynColor(0x9333EA, 0xC084FC)
 
     static let red = dynColor(0xE0352B, 0xFF5A50)
     static let orange = dynColor(0xF08A24, 0xFF9F40)
@@ -41,7 +42,7 @@ enum Theme {
 }
 
 enum PulseTab: String, CaseIterable, Identifiable {
-    case overview, actionCenter, apps, cpu, memory, disk, network, gpu, battery, projects
+    case overview, actionCenter, apps, cpu, memory, disk, network, gpu, battery, projects, agents
 
     var id: String { rawValue }
 
@@ -57,6 +58,7 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .gpu: "GPU"
         case .battery: "Battery"
         case .projects: "Projects"
+        case .agents: "Agents"
         }
     }
 
@@ -72,6 +74,7 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .gpu: "square.3.layers.3d"
         case .battery: "battery.75percent"
         case .projects: "folder"
+        case .agents: "sparkles.2"
         }
     }
 
@@ -87,6 +90,7 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .gpu: Theme.gpu
         case .battery: Theme.battery
         case .projects: Theme.projects
+        case .agents: Theme.agents
         }
     }
 }
@@ -101,5 +105,17 @@ enum IconCache {
         img.size = NSSize(width: 64, height: 64)
         cache[path] = img
         return img
+    }
+}
+
+extension Color {
+    init(hex: UInt32, alpha: Double = 1.0) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xFF) / 255.0,
+            green: Double((hex >> 8) & 0xFF) / 255.0,
+            blue: Double(hex & 0xFF) / 255.0,
+            opacity: alpha
+        )
     }
 }

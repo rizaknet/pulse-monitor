@@ -80,6 +80,7 @@ struct MainWindowView: View {
             case .apps: AppsView(store: store)
             case .battery: BatteryView(store: store)
             case .projects: ProjectsView(store: store)
+            case .agents: AgentsView(store: store)
             default: MetricView(tab: store.activeTab, store: store)
             }
         }
@@ -95,7 +96,7 @@ struct TabBar: View {
         HStack(spacing: 2) {
             ForEach(Array(PulseTab.allCases.enumerated()), id: \.element) { i, t in
                 let on = t == selection
-                let shortcutChar = Character(i < 9 ? "\(i + 1)" : "0")
+                let shortcutChar: Character? = i < 9 ? Character("\(i + 1)") : (i == 9 ? "0" : nil)
 
                 Button {
                     withAnimation(.snappy(duration: 0.22)) { selection = t }
@@ -114,14 +115,25 @@ struct TabBar: View {
                     .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
-                .help("\(t.title) (⌘\(String(shortcutChar)))")
-                .keyboardShortcut(KeyEquivalent(shortcutChar), modifiers: .command)
+                .help(shortcutChar != nil ? "\(t.title) (⌘\(String(shortcutChar!)))" : t.title)
+                .modifier(TabShortcutModifier(char: shortcutChar))
             }
         }
         .padding(3)
         .background(Theme.card, in: Capsule())
         .overlay(Capsule().stroke(Theme.border))
         .fixedSize()
+    }
+}
+
+private struct TabShortcutModifier: ViewModifier {
+    let char: Character?
+    func body(content: Content) -> some View {
+        if let char {
+            content.keyboardShortcut(KeyEquivalent(char), modifiers: .command)
+        } else {
+            content
+        }
     }
 }
 

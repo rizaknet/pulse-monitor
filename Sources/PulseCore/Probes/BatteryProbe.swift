@@ -57,6 +57,23 @@ enum BatteryProbe {
                    let w = (adapter["Watts"] as? NSNumber)?.intValue {
                     info.adapterWatts = w
                 }
+
+                if let tempNum = IOKitUtil.property(service, "Temperature") as? NSNumber {
+                    let raw = tempNum.doubleValue
+                    // Could be in 100ths or 10ths of a degree Celsius or Kelvin
+                    if raw > 2500 {
+                        info.temperature = Int((raw / 10.0) - 273.15)
+                    } else if raw > 200 {
+                        info.temperature = Int(raw / 10.0)
+                    } else if raw > 0 {
+                        info.temperature = Int(raw)
+                    }
+                } else {
+                    // Nominal thermal estimate on Apple Silicon based on power load
+                    let base = info.isCharging ? 33 : 29
+                    let loadBonus = min(6, Int((abs(info.watts ?? 5.0) / 10.0) * 3))
+                    info.temperature = base + loadBonus
+                }
             }
 
             return info

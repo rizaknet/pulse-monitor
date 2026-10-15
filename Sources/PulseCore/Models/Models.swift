@@ -120,6 +120,7 @@ public struct BatteryInfo: Sendable, Equatable {
     public var watts: Double?            // positive = drawing from battery, negative = charging
     public var voltage: Double?          // volts
     public var adapterWatts: Int?
+    public var temperature: Int?         // degrees Celsius
     public init() {}
 }
 
@@ -161,12 +162,43 @@ public struct SleepBlocker: Sendable, Identifiable {
     public var id: String { "\(pid)-\(kind.rawValue)-\(reason)" }
 }
 
+public struct AgentWorker: Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let kind: String          // e.g. "command", "server", "browser", "tool server"
+    public let cpu: Double
+    public let memory: UInt64
+    public let pid: pid_t
+
+    public init(id: String, name: String, kind: String, cpu: Double, memory: UInt64, pid: pid_t) {
+        self.id = id; self.name = name; self.kind = kind; self.cpu = cpu; self.memory = memory; self.pid = pid
+    }
+}
+
+public struct AgentSession: Sendable, Identifiable {
+    public let id: String
+    public let title: String
+    public let agentName: String     // "Claude Code", "Codex", "Cursor Agent", "Antigravity"
+    public let project: String
+    public let isWorking: Bool
+    public let runtime: TimeInterval
+    public let memory: UInt64
+    public let pids: [pid_t]
+    public let workers: [AgentWorker]
+
+    public init(id: String, title: String, agentName: String, project: String, isWorking: Bool, runtime: TimeInterval, memory: UInt64, pids: [pid_t], workers: [AgentWorker]) {
+        self.id = id; self.title = title; self.agentName = agentName; self.project = project; self.isWorking = isWorking
+        self.runtime = runtime; self.memory = memory; self.pids = pids; self.workers = workers
+    }
+}
+
 /// Slow-lane data (ports, projects, …), refreshed every ~10 s.
 public struct DevState: Sendable {
     public var projects: [DevProject] = []
     public var ports: [ListeningPort] = []
     public var idleServers: [IdleServer] = []
     public var blockers: [SleepBlocker] = []
+    public var agents: [AgentSession] = []
     public init() {}
 }
 
