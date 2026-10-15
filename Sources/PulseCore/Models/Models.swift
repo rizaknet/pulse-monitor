@@ -197,13 +197,16 @@ public struct AgentQuota: Sendable, Identifiable {
     public let provider: String           // "Claude", "Codex", "Gemini"
     public let plan: String               // "Claude Pro", "ChatGPT Plus", "Google AI Pro"
     public let percentRemaining: Int      // e.g. 97, 100, 98
-    public let headline: String           // e.g. "Fresh week · 3% used", "5-hour session: 100% left", "5-hour limit: 98% remaining"
-    public let sessionLimitText: String   // e.g. "Resets at 3:00 PM · 6% used"
-    public let weeklyLimitText: String    // e.g. "Resets Sun 2:00 PM · 3% used"
+    public let headline: String           // e.g. "Fresh week · 3% used", "5-hour session: 100% left", "5-hour limit: 98% left"
+    public let subHeadline: String        // e.g. "Current session: 6% used", "Shared across Codex & Work", "Antigravity & Gemini models"
+    public let sessionResetText: String   // e.g. "Resets in 2h 17m (at 8:00 PM)"
+    public let weeklyLimitText: String    // e.g. "This week", "Weekly limit"
+    public let weeklyResetText: String    // e.g. "Resets Sunday 2:00 PM (in 3d 20h)"
 
-    public init(id: String, provider: String, plan: String, percentRemaining: Int, headline: String, sessionLimitText: String, weeklyLimitText: String) {
+    public init(id: String, provider: String, plan: String, percentRemaining: Int, headline: String, subHeadline: String, sessionResetText: String, weeklyLimitText: String, weeklyResetText: String) {
         self.id = id; self.provider = provider; self.plan = plan; self.percentRemaining = percentRemaining
-        self.headline = headline; self.sessionLimitText = sessionLimitText; self.weeklyLimitText = weeklyLimitText
+        self.headline = headline; self.subHeadline = subHeadline; self.sessionResetText = sessionResetText
+        self.weeklyLimitText = weeklyLimitText; self.weeklyResetText = weeklyResetText
     }
 }
 

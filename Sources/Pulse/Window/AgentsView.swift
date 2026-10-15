@@ -6,59 +6,82 @@ struct AgentsView: View {
     @State private var pendingQuitSession: AgentSession?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // MARK: Top AI Plan & Quota Cards (Claude, Codex, Gemini)
-                HStack(spacing: 14) {
-                    claudeQuotaCard
-                    codexQuotaCard
-                    geminiQuotaCard
-                }
-
-                // MARK: Active Sessions Section
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 8) {
-                        Text("Agent Sessions & Background Workers")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Theme.ink)
-
-                        if !store.dev.agents.isEmpty {
-                            Text("\(store.dev.agents.count)")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(Theme.agents)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(Theme.agents.opacity(0.12), in: Capsule())
-                        }
+        TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // MARK: Top AI Plan & Quota Cards (Claude, Codex, Gemini)
+                    HStack(spacing: 14) {
+                        claudeQuotaCard
+                        codexQuotaCard
+                        geminiQuotaCard
                     }
 
-                    if store.dev.agents.isEmpty {
-                        HStack(spacing: 12) {
-                            Image(systemName: "sparkles.2")
-                                .font(.system(size: 22))
-                                .foregroundStyle(Theme.agents)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("No Active AI Agent Sessions")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Theme.ink)
-                                Text("Sessions from Claude Code, Codex CLI, or Google Antigravity will automatically be detected and monitored here.")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(Theme.inkSecondary)
+                    // MARK: Active Sessions Section
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 8) {
+                            Text("Agent Sessions & Background Workers")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(Theme.ink)
+
+                            if !store.dev.agents.isEmpty {
+                                Text("\(store.dev.agents.count)")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(Theme.agents)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Theme.agents.opacity(0.12), in: Capsule())
                             }
+
                             Spacer()
+
+                            // Manual Force Refresh
+                            Button {
+                                store.wake()
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "arrow.clockwise")
+                                        .font(.system(size: 11))
+                                    Text("Refresh")
+                                        .font(.system(size: 11.5, weight: .medium))
+                                }
+                                .foregroundStyle(Theme.inkSecondary)
+                                .padding(.horizontal, 9)
+                                .frame(height: 24)
+                                .background(Theme.card, in: Capsule())
+                                .overlay(Capsule().stroke(Theme.border))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Refresh agent processes and quota counters")
                         }
-                        .padding(18)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    } else {
-                        ForEach(store.dev.agents) { session in
-                            sessionCard(session)
+
+                        if store.dev.agents.isEmpty {
+                            HStack(spacing: 12) {
+                                Image(systemName: "sparkles.2")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(Theme.agents)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("No Active AI Agent Sessions")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(Theme.ink)
+                                    Text("Sessions from Claude Code, Codex CLI, or Google Antigravity will automatically be detected and monitored here.")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Theme.inkSecondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(18)
+                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        } else {
+                            ForEach(store.dev.agents) { session in
+                                sessionCard(session)
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, 14)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
-            .padding(.bottom, 24)
         }
         .confirmationDialog(
             "Quit \(pendingQuitSession?.title ?? "Session")?",
@@ -80,7 +103,14 @@ struct AgentsView: View {
     // MARK: - Claude Quota Card (from Claude Pro usage)
 
     private var claudeQuotaCard: some View {
+        let quota = store.dev.quotas.first(where: { $0.provider == "Claude" })
         let color = Theme.claude
+        let pct = quota?.percentRemaining ?? 97
+        let headline = quota?.headline ?? "Fresh week · 3% used"
+        let subhead = quota?.subHeadline ?? "Current session: 6% used"
+        let sessionReset = quota?.sessionResetText ?? "Resets today at 8:00 PM"
+        let weeklyReset = quota?.weeklyResetText ?? "Resets Sunday 2:00 PM"
+
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "sparkles")
@@ -99,47 +129,47 @@ struct AgentsView: View {
             }
 
             HStack(spacing: 12) {
-                // Circular Gauge for Weekly Remaining (97% left, 3% used)
+                // Circular Gauge for Weekly Remaining
                 ZStack {
                     Circle()
                         .stroke(color.opacity(0.18), lineWidth: 4.5)
                         .frame(width: 44, height: 44)
                     Circle()
-                        .trim(from: 0, to: 0.97)
+                        .trim(from: 0, to: CGFloat(pct) / 100.0)
                         .stroke(color, style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .frame(width: 44, height: 44)
-                    VStack(spacing: 0) {
-                        Text("97%")
-                            .font(.system(size: 12, weight: .bold))
-                            .monospacedDigit()
-                            .foregroundStyle(Theme.ink)
-                    }
+                    Text("\(pct)%")
+                        .font(.system(size: 12, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.ink)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Fresh week · 3% used")
+                    Text(headline)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                    Text("Current session: 6% used")
+                    Text(subhead)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.inkSecondary)
-                    Text("Resets today at 3:00 PM")
+                    Text(sessionReset)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.green)
+                        .lineLimit(1)
                 }
             }
 
             Divider().opacity(0.3)
 
             HStack {
-                Text("This week")
+                Text(quota?.weeklyLimitText ?? "This week")
                     .font(.system(size: 10.5))
                     .foregroundStyle(Theme.inkSecondary)
                 Spacer()
-                Text("Resets Sunday 2:00 PM")
+                Text(weeklyReset)
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(1)
             }
         }
         .padding(14)
@@ -150,7 +180,14 @@ struct AgentsView: View {
     // MARK: - Codex Quota Card (from ChatGPT Plus)
 
     private var codexQuotaCard: some View {
+        let quota = store.dev.quotas.first(where: { $0.provider == "Codex" })
         let color = Theme.codex
+        let pct = quota?.percentRemaining ?? 100
+        let headline = quota?.headline ?? "5-hour session: 100% left"
+        let subhead = quota?.subHeadline ?? "Shared across Codex & Work"
+        let sessionReset = quota?.sessionResetText ?? "Resets in 4h 12m"
+        let weeklyReset = quota?.weeklyResetText ?? "100% left · Resets in 7d"
+
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "terminal.fill")
@@ -169,45 +206,47 @@ struct AgentsView: View {
             }
 
             HStack(spacing: 12) {
-                // Circular Gauge for 5-Hour Session (100% left)
+                // Circular Gauge for 5-Hour Session
                 ZStack {
                     Circle()
                         .stroke(color.opacity(0.18), lineWidth: 4.5)
                         .frame(width: 44, height: 44)
                     Circle()
-                        .trim(from: 0, to: 1.0)
+                        .trim(from: 0, to: CGFloat(pct) / 100.0)
                         .stroke(color, style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .frame(width: 44, height: 44)
-                    Text("100%")
+                    Text("\(pct)%")
                         .font(.system(size: 11.5, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("5-hour session: 100% left")
+                    Text(headline)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                    Text("Shared across Codex & Work")
+                    Text(subhead)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.inkSecondary)
-                    Text("Resets in 5h 0m")
+                    Text(sessionReset)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.green)
+                        .lineLimit(1)
                 }
             }
 
             Divider().opacity(0.3)
 
             HStack {
-                Text("Weekly limit")
+                Text(quota?.weeklyLimitText ?? "Weekly limit")
                     .font(.system(size: 10.5))
                     .foregroundStyle(Theme.inkSecondary)
                 Spacer()
-                Text("100% left · Resets in 7d")
+                Text(weeklyReset)
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(1)
             }
         }
         .padding(14)
@@ -218,7 +257,14 @@ struct AgentsView: View {
     // MARK: - Gemini Quota Card (from Google AI Pro)
 
     private var geminiQuotaCard: some View {
+        let quota = store.dev.quotas.first(where: { $0.provider == "Gemini" })
         let color = Theme.gemini
+        let pct = quota?.percentRemaining ?? 98
+        let headline = quota?.headline ?? "5-hour limit: 98% left"
+        let subhead = quota?.subHeadline ?? "Antigravity & Gemini models"
+        let sessionReset = quota?.sessionResetText ?? "Resets in 3h 24m"
+        let weeklyReset = quota?.weeklyResetText ?? "97% left · Resets in 3d 5h"
+
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "sparkle")
@@ -237,45 +283,47 @@ struct AgentsView: View {
             }
 
             HStack(spacing: 12) {
-                // Circular Gauge for 5-Hour Session (98% remaining)
+                // Circular Gauge for 5-Hour Session
                 ZStack {
                     Circle()
                         .stroke(color.opacity(0.18), lineWidth: 4.5)
                         .frame(width: 44, height: 44)
                     Circle()
-                        .trim(from: 0, to: 0.98)
+                        .trim(from: 0, to: CGFloat(pct) / 100.0)
                         .stroke(color, style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .frame(width: 44, height: 44)
-                    Text("98%")
+                    Text("\(pct)%")
                         .font(.system(size: 12, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(Theme.ink)
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("5-hour limit: 98% left")
+                    Text(headline)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Theme.ink)
-                    Text("Antigravity & Gemini models")
+                    Text(subhead)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.inkSecondary)
-                    Text("Resets in 4h 14m")
+                    Text(sessionReset)
                         .font(.system(size: 10.5))
                         .foregroundStyle(Theme.green)
+                        .lineLimit(1)
                 }
             }
 
             Divider().opacity(0.3)
 
             HStack {
-                Text("Weekly limit")
+                Text(quota?.weeklyLimitText ?? "Weekly limit")
                     .font(.system(size: 10.5))
                     .foregroundStyle(Theme.inkSecondary)
                 Spacer()
-                Text("97% left · Resets in 3d 8h")
+                Text(weeklyReset)
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Theme.inkSecondary)
+                    .lineLimit(1)
             }
         }
         .padding(14)
@@ -326,7 +374,7 @@ struct AgentsView: View {
                         }
                     }
 
-                    Text("\(session.agentName) · \(session.project) · running \(Int(session.runtime / 60)) min")
+                    Text("\(session.agentName) · \(session.project) · \(formatRuntime(session.runtime))")
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.inkSecondary)
                 }
@@ -351,11 +399,11 @@ struct AgentsView: View {
                 }
             }
 
-            // Real Workers Sub-list (Hooks, MCP servers, services)
+            // Real Workers Sub-list (Consolidated & Clean)
             if !session.workers.isEmpty {
                 Divider().opacity(0.4).padding(.vertical, 2)
 
-                Text("Active Workers & Tools · \(session.workers.count)")
+                Text("Active Workers & Services · \(session.workers.count)")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.inkTertiary)
                     .padding(.leading, 40)
@@ -364,7 +412,7 @@ struct AgentsView: View {
                     ForEach(session.workers) { w in
                         HStack(spacing: 8) {
                             Text(w.name)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundStyle(Theme.ink)
 
                             Text(w.kind)
@@ -394,5 +442,16 @@ struct AgentsView: View {
         }
         .padding(16)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func formatRuntime(_ sec: TimeInterval) -> String {
+        let totalSec = max(0, Int(sec))
+        let hours = totalSec / 3600
+        let mins = (totalSec % 3600) / 60
+        if hours > 0 {
+            return "running \(hours)h \(mins) min"
+        } else {
+            return "running \(max(1, mins)) min"
+        }
     }
 }

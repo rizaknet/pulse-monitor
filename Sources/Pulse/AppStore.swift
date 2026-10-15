@@ -66,7 +66,14 @@ final class AppStore {
     private func apply(_ s: Snapshot) {
         snapshot = s
         hasData = true
-        if let d = s.dev { dev = d }
+        if let d = s.dev {
+            if !d.projects.isEmpty { dev.projects = d.projects }
+            if !d.ports.isEmpty { dev.ports = d.ports }
+            if !d.idleServers.isEmpty { dev.idleServers = d.idleServers }
+            if !d.blockers.isEmpty { dev.blockers = d.blockers }
+            dev.agents = d.agents
+            dev.quotas = d.quotas
+        }
         let now = s.date
 
         cpuHistory.append(s.system.cpuTotal, at: now)

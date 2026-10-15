@@ -62,19 +62,25 @@ public actor SamplingEngine {
         snapshot.battery = BatteryProbe.sample()
         snapshot.appNetworkReady = netReady
 
-        // Slow lane sampling (every ~10s: ports, projects, idle servers, sleep blockers)
+        // Fast agent sampling on every tick + slow lane ports/projects every ~10s
+        let (agents, quotas) = AgentsProbe.sample(processes: procs, ports: [])
         var idleServers: [IdleServer] = []
+
         if tickCount % 5 == 1 {
             let (projects, ports) = devProbe.sample(processes: procs)
             idleServers = idleWatcher.ingest(ports: ports, processes: procs, at: now)
             let blockers = PowerAssertions.current()
-            let (agents, quotas) = AgentsProbe.sample(processes: procs, ports: ports)
 
             var dev = DevState()
             dev.projects = projects
             dev.ports = ports
             dev.idleServers = idleServers
             dev.blockers = blockers
+            dev.agents = agents
+            dev.quotas = quotas
+            snapshot.dev = dev
+        } else {
+            var dev = DevState()
             dev.agents = agents
             dev.quotas = quotas
             snapshot.dev = dev
