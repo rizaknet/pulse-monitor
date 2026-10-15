@@ -46,7 +46,7 @@ enum Theme {
 }
 
 enum PulseTab: String, CaseIterable, Identifiable {
-    case overview, actionCenter, apps, cpu, memory, disk, network, gpu, battery, projects, agents
+    case overview, actionCenter, apps, cpu, memory, storage, disk, network, gpu, battery, projects, agents
 
     var id: String { rawValue }
 
@@ -57,6 +57,7 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .apps: "Apps"
         case .cpu: "CPU"
         case .memory: "Memory"
+        case .storage: "Storage"
         case .disk: "Disk"
         case .network: "Network"
         case .gpu: "GPU"
@@ -73,7 +74,8 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .apps: "square.stack"
         case .cpu: "cpu"
         case .memory: "memorychip"
-        case .disk: "internaldrive"
+        case .storage: "internaldrive.fill"
+        case .disk: "arrow.up.arrow.down.square"
         case .network: "globe"
         case .gpu: "square.3.layers.3d"
         case .battery: "battery.75percent"
@@ -89,7 +91,8 @@ enum PulseTab: String, CaseIterable, Identifiable {
         case .apps: Theme.apps
         case .cpu: Theme.cpu
         case .memory: Theme.memory
-        case .disk: Theme.disk
+        case .storage: Theme.disk
+        case .disk: Theme.orange
         case .network: Theme.network
         case .gpu: Theme.gpu
         case .battery: Theme.battery

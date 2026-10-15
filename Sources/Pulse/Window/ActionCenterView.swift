@@ -4,6 +4,7 @@ import PulseCore
 struct ActionCenterView: View {
     @Bindable var store: AppStore
     @State private var cleaner = JunkCleaner()
+    @State private var aiAudit = AIAuditEngine()
     @State private var actionFeedback: String? = nil
 
     var body: some View {
@@ -50,6 +51,9 @@ struct ActionCenterView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.green.opacity(0.3)))
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
+
+                // MARK: AI Health & Resource Audit
+                aiAuditSection
 
                 // MARK: Storage & Temp Cleaners
                 storageSection
@@ -477,6 +481,331 @@ struct ActionCenterView: View {
                 }
             }
         }
+    }
+
+    // MARK: - AI Resource Audit Section
+
+    private var aiAuditSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header with Model Picker & Run Button
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(aiAudit.selectedProvider.color)
+
+                Text("AI Resource Audit & Health Check")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(Theme.ink)
+
+                Spacer()
+
+                // AI Model Provider Picker
+                Menu {
+                    ForEach(AIModelProvider.allCases) { p in
+                        Button {
+                            aiAudit.selectedProvider = p
+                        } label: {
+                            HStack {
+                                Text(p.rawValue)
+                                if aiAudit.selectedProvider == p {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: aiAudit.selectedProvider.icon)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(aiAudit.selectedProvider.color)
+                        Text(aiAudit.selectedProvider.rawValue)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.inkTertiary)
+                    }
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(Theme.card, in: Capsule())
+                    .overlay(Capsule().stroke(Theme.border))
+                }
+                .menuStyle(.borderlessButton)
+
+                // Run Audit Button
+                Button {
+                    Task {
+                        await aiAudit.runAudit(snapshot: store.snapshot)
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if aiAudit.isAnalyzing {
+                            ProgressView().controlSize(.small)
+                            Text(aiAudit.analysisStep)
+                                .font(.system(size: 12, weight: .medium))
+                        } else {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(aiAudit.currentReport == nil ? "Run AI Audit" : "Re-analyze")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background(aiAudit.selectedProvider.color, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(aiAudit.isAnalyzing)
+            }
+
+            // Results Card
+            if let report = aiAudit.currentReport {
+                VStack(alignment: .leading, spacing: 14) {
+                    // Verdict Box
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: report.provider.icon)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(report.provider.color)
+                            .frame(width: 32, height: 32)
+                            .background(report.provider.color.opacity(0.12), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Text("AI Health Verdict")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(Theme.ink)
+
+                                Text(report.provider.modelBadge)
+                                    .font(.system(size: 10.5, weight: .semibold))
+                                    .foregroundStyle(report.provider.color)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 1.5)
+                                    .background(report.provider.color.opacity(0.12), in: Capsule())
+                            }
+
+                            Text(report.summaryVerdict)
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(Theme.inkSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer()
+
+                        if report.safeQuitCount > 0 {
+                            Button {
+                                let reclaimed = aiAudit.reclaimAllSafe()
+                                feedback("Reclaimed resources from \(reclaimed) background apps!")
+                                store.wake()
+                            } label: {
+                                Label("Reclaim All (\(Format.bytes(report.totalReclaimableMemory)))", systemImage: "sparkles")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                    .frame(height: 30)
+                                    .background(Theme.green, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    // Stat Pills Row
+                    HStack(spacing: 12) {
+                        statPill(title: "Reclaimable RAM", value: Format.bytes(report.totalReclaimableMemory), color: Theme.green)
+                        statPill(title: "Reclaimable CPU", value: Format.percent(report.totalReclaimableCPU), color: Theme.cpu)
+                        statPill(title: "Safe Apps", value: "\(report.safeQuitCount)", color: Theme.green)
+                        statPill(title: "System Core Protected", value: "\(report.systemCriticalCount)", color: Theme.red)
+                    }
+
+                    Divider().opacity(0.4)
+
+                    // Risk Filter Chips
+                    HStack(spacing: 8) {
+                        riskFilterChip(title: "All (\(report.findings.count))", level: nil)
+                        riskFilterChip(title: "Safe to Quit (\(report.safeQuitCount))", level: .safeToQuit)
+                        riskFilterChip(title: "Background Helpers (\(report.backgroundHelperCount))", level: .backgroundHelper)
+                        riskFilterChip(title: "macOS Core (\(report.systemCriticalCount))", level: .macOSCore)
+                    }
+
+                    // Findings Table
+                    let filteredFindings = report.findings.filter {
+                        aiAudit.filterRisk == nil || $0.riskLevel == aiAudit.filterRisk
+                    }
+
+                    VStack(spacing: 8) {
+                        ForEach(filteredFindings) { finding in
+                            aiFindingRow(finding)
+                        }
+                    }
+                }
+                .padding(16)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            } else if !aiAudit.isAnalyzing {
+                // Standby Prompt Card
+                HStack(spacing: 14) {
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .font(.system(size: 26))
+                        .foregroundStyle(aiAudit.selectedProvider.color)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Analyze Resource Hogs & Background Processes with AI")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundStyle(Theme.ink)
+
+                        Text("Use \(aiAudit.selectedProvider.rawValue) to audit which processes are vital macOS system daemons and which idle apps can be safely closed to reclaim RAM and CPU.")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.inkSecondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        Task {
+                            await aiAudit.runAudit(snapshot: store.snapshot)
+                        }
+                    } label: {
+                        Text("Start Audit")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .frame(height: 28)
+                            .background(aiAudit.selectedProvider.color, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(16)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
+    }
+
+    private func statPill(title: String, value: String, color: Color) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 7, height: 7)
+            Text(title)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.inkSecondary)
+            Text(value)
+                .font(.system(size: 11.5, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.ink)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background(Theme.raised, in: Capsule())
+    }
+
+    private func riskFilterChip(title: String, level: AIRiskLevel?) -> some View {
+        let isSelected = aiAudit.filterRisk == level
+        return Button {
+            withAnimation(.snappy(duration: 0.2)) {
+                aiAudit.filterRisk = level
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : Theme.inkSecondary)
+                .padding(.horizontal, 10)
+                .frame(height: 24)
+                .background(isSelected ? Theme.ink : Theme.raised, in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func aiFindingRow(_ finding: AIProcessFinding) -> some View {
+        HStack(spacing: 12) {
+            // Icon
+            if let path = finding.iconPath, !path.isEmpty {
+                Image(nsImage: IconCache.icon(forPath: path))
+                    .resizable()
+                    .frame(width: 28, height: 28)
+            } else {
+                Image(systemName: finding.riskLevel == .macOSCore ? "lock.shield.fill" : "app.fill")
+                    .font(.system(size: 15))
+                    .foregroundStyle(finding.riskLevel.color)
+                    .frame(width: 28, height: 28)
+                    .background(finding.riskLevel.color.opacity(0.12), in: Circle())
+            }
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(finding.name)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Theme.ink)
+
+                    if finding.pid > 0 {
+                        Text("PID \(finding.pid)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(Theme.inkTertiary)
+                    }
+
+                    // Risk Badge
+                    HStack(spacing: 4) {
+                        Image(systemName: finding.riskLevel.icon)
+                            .font(.system(size: 9))
+                        Text(finding.riskLevel.rawValue)
+                            .font(.system(size: 10.5, weight: .semibold))
+                    }
+                    .foregroundStyle(finding.riskLevel.color)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1.5)
+                    .background(finding.riskLevel.color.opacity(0.12), in: Capsule())
+                }
+
+                Text(finding.aiInsight)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            // Usage Numbers
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(Format.bytes(finding.memory))
+                    .font(.system(size: 12.5, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.ink)
+
+                if finding.cpu > 0.01 {
+                    Text("\(Format.percent(finding.cpu)) CPU")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.cpu)
+                }
+            }
+
+            // Action
+            if finding.canQuit {
+                Button {
+                    let success = aiAudit.quitProcess(pid: finding.pid)
+                    if success {
+                        feedback("Quit \(finding.name)")
+                        store.wake()
+                    }
+                } label: {
+                    Text("Quit")
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(Theme.red)
+                        .padding(.horizontal, 9)
+                        .frame(height: 24)
+                        .background(Theme.red.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+            } else {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
+                    Text("Protected")
+                        .font(.system(size: 10.5, weight: .medium))
+                }
+                .foregroundStyle(Theme.inkTertiary)
+                .padding(.horizontal, 8)
+                .frame(height: 24)
+                .background(Theme.raised, in: Capsule())
+            }
+        }
+        .padding(12)
+        .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Helpers

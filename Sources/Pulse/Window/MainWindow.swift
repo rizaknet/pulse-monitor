@@ -28,7 +28,7 @@ struct MainWindowView: View {
         .background(Theme.bg)
         .ignoresSafeArea(.container, edges: .top)
         .background(WindowConfigurator())
-        .frame(minWidth: 1020, minHeight: 640)
+        .frame(minWidth: 1080, minHeight: 640)
         .onAppear { store.isWindowOpen = true; store.wake() }
         .onDisappear { store.isWindowOpen = false }
         .onReceive(NotificationCenter.default.publisher(for: .openPulseMainWindow)) { _ in
@@ -79,6 +79,7 @@ struct MainWindowView: View {
             case .actionCenter: ActionCenterView(store: store)
             case .apps: AppsView(store: store)
             case .battery: BatteryView(store: store)
+            case .storage: StorageView(store: store)
             case .projects: ProjectsView(store: store)
             case .agents: AgentsView(store: store)
             default: MetricView(tab: store.activeTab, store: store)
@@ -101,15 +102,15 @@ struct TabBar: View {
                 Button {
                     withAnimation(.snappy(duration: 0.22)) { selection = t }
                 } label: {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4.5) {
                         Image(systemName: t.icon)
-                            .font(.system(size: 11.5, weight: on ? .bold : .medium))
+                            .font(.system(size: 11, weight: on ? .bold : .medium))
                         Text(t.title)
-                            .font(.system(size: 12, weight: on ? .semibold : .medium))
+                            .font(.system(size: 11.5, weight: on ? .semibold : .medium))
                             .fixedSize()
                     }
                     .foregroundStyle(on ? t.color : Theme.inkSecondary)
-                    .padding(.horizontal, 9)
+                    .padding(.horizontal, 7.5)
                     .frame(height: 26)
                     .background(on ? t.color.opacity(0.14) : .clear, in: Capsule())
                     .contentShape(Capsule())
@@ -119,7 +120,7 @@ struct TabBar: View {
                 .modifier(TabShortcutModifier(char: shortcutChar))
             }
         }
-        .padding(3)
+        .padding(2.5)
         .background(Theme.card, in: Capsule())
         .overlay(Capsule().stroke(Theme.border))
         .fixedSize()
