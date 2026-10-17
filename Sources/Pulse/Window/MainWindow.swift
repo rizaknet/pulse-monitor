@@ -18,7 +18,7 @@ struct MainWindowView: View {
             .overlay(alignment: .trailing) {
                 if let app = store.app(store.selectedAppID) {
                     AppDetailPanel(app: app, store: store)
-                        .frame(width: 320)
+                        .frame(width: 380)
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }

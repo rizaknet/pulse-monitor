@@ -5,6 +5,8 @@ struct AgentsView: View {
     @Bindable var store: AppStore
     @State private var pendingQuitSession: AgentSession?
 
+    @State private var isRefreshing = false
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
             ScrollView {
@@ -36,12 +38,18 @@ struct AgentsView: View {
 
                             // Manual Force Refresh
                             Button {
+                                withAnimation(.linear(duration: 0.6)) { isRefreshing = true }
                                 store.wake()
+                                Task {
+                                    try? await Task.sleep(for: .milliseconds(600))
+                                    await MainActor.run { isRefreshing = false }
+                                }
                             } label: {
                                 HStack(spacing: 5) {
                                     Image(systemName: "arrow.clockwise")
                                         .font(.system(size: 11))
-                                    Text("Refresh")
+                                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                                    Text(isRefreshing ? "Refreshing…" : "Refresh")
                                         .font(.system(size: 11.5, weight: .medium))
                                 }
                                 .foregroundStyle(Theme.inkSecondary)
@@ -448,7 +456,11 @@ struct AgentsView: View {
         let totalSec = max(0, Int(sec))
         let hours = totalSec / 3600
         let mins = (totalSec % 3600) / 60
-        if hours > 0 {
+        if hours >= 24 {
+            let days = hours / 24
+            let remHours = hours % 24
+            return "active \(days)d \(remHours)h"
+        } else if hours > 0 {
             return "running \(hours)h \(mins) min"
         } else {
             return "running \(max(1, mins)) min"

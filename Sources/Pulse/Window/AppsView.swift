@@ -52,7 +52,7 @@ struct AppsView: View {
                 }
                 .padding(.horizontal, 4)
 
-                AppTable(store: store, primary: primaryMetric, filter: filter)
+                AppTable(store: store, primary: primaryMetric, filter: filter, showDescription: true)
             }
             .padding(.horizontal, 18)
             .padding(.top, 6)

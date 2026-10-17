@@ -83,6 +83,7 @@ struct AppTable: View {
     let primary: AppMetric
     var filter = ""
     var limit: Int? = nil
+    var showDescription: Bool = false
 
     @State private var sortKey: String? = nil      // nil = primary metric
     @State private var ascending = false
@@ -147,12 +148,24 @@ struct AppTable: View {
 
     private func header(key: String) -> some View {
         HStack(spacing: 0) {
-            headerCell("Name", id: "name", key: key, align: .leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 52)
-            ForEach(columns) { c in
-                headerCell(c.title, id: c.rawValue, key: key, align: .trailing)
-                    .frame(width: c == primary ? 170 : 92, alignment: .trailing)
+            if showDescription {
+                headerCell("Name", id: "name", key: key, align: .leading)
+                    .frame(width: 220, alignment: .leading)
+                    .padding(.leading, 52)
+                headerCell("AI Description & Legitimacy", id: "desc", key: key, align: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                ForEach(columns) { c in
+                    headerCell(c.title, id: c.rawValue, key: key, align: .trailing)
+                        .frame(width: c == primary ? 140 : 86, alignment: .trailing)
+                }
+            } else {
+                headerCell("Name", id: "name", key: key, align: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 52)
+                ForEach(columns) { c in
+                    headerCell(c.title, id: c.rawValue, key: key, align: .trailing)
+                        .frame(width: c == primary ? 170 : 92, alignment: .trailing)
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -198,23 +211,89 @@ struct AppTable: View {
 
             AppIconView(app: app, size: 26).padding(.leading, 4).padding(.trailing, 10)
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(app.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
-                Text("\(app.processes.count) process\(app.processes.count == 1 ? "" : "es")")
-                    .font(.system(size: 11)).foregroundStyle(Theme.inkSecondary)
-            }
-            Spacer(minLength: 8)
+            if showDescription {
+                let intel = AppIntelligence.shared.lookup(app: app)
 
-            ForEach(columns) { c in
-                let v = c.value(app)
-                HStack(spacing: 10) {
-                    if c == primary { InlineBar(value: v / maxPrimary, color: c.color, width: 60) }
-                    Text(c.format(v))
-                        .font(.system(size: c == primary ? 13 : 12.5, weight: c == primary ? .semibold : .regular))
-                        .monospacedDigit()
-                        .foregroundStyle(c == primary ? Theme.ink : Theme.inkSecondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(app.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                    Text("\(app.processes.count) process\(app.processes.count == 1 ? "" : "es")")
+                        .font(.system(size: 11)).foregroundStyle(Theme.inkSecondary)
                 }
-                .frame(width: c == primary ? 170 : 92, alignment: .trailing)
+                .frame(width: 170, alignment: .leading)
+
+                // AI Description & Legitimacy status column
+                HStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: intel.legitimacy.icon)
+                            .font(.system(size: 9.5, weight: .bold))
+                        Text(intel.legitimacy.title)
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(intel.legitimacy.color)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(intel.legitimacy.badgeBackground, in: Capsule())
+                    .overlay(Capsule().stroke(intel.legitimacy.color.opacity(0.25), lineWidth: 1))
+
+                    Text(intel.summary)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(Theme.inkSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    Spacer(minLength: 4)
+
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            store.selectedAppID = app.id
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 9.5))
+                            Text("Inspect")
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.agents)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Theme.agents.opacity(0.10), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("AI deep research & security audit for \(app.name)")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                ForEach(columns) { c in
+                    let v = c.value(app)
+                    HStack(spacing: 8) {
+                        if c == primary { InlineBar(value: v / maxPrimary, color: c.color, width: 44) }
+                        Text(c.format(v))
+                            .font(.system(size: c == primary ? 12.5 : 12, weight: c == primary ? .semibold : .regular))
+                            .monospacedDigit()
+                            .foregroundStyle(c == primary ? Theme.ink : Theme.inkSecondary)
+                    }
+                    .frame(width: c == primary ? 140 : 86, alignment: .trailing)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(app.name).font(.system(size: 13, weight: .semibold)).foregroundStyle(Theme.ink).lineLimit(1)
+                    Text("\(app.processes.count) process\(app.processes.count == 1 ? "" : "es")")
+                        .font(.system(size: 11)).foregroundStyle(Theme.inkSecondary)
+                }
+                Spacer(minLength: 8)
+
+                ForEach(columns) { c in
+                    let v = c.value(app)
+                    HStack(spacing: 10) {
+                        if c == primary { InlineBar(value: v / maxPrimary, color: c.color, width: 60) }
+                        Text(c.format(v))
+                            .font(.system(size: c == primary ? 13 : 12.5, weight: c == primary ? .semibold : .regular))
+                            .monospacedDigit()
+                            .foregroundStyle(c == primary ? Theme.ink : Theme.inkSecondary)
+                    }
+                    .frame(width: c == primary ? 170 : 92, alignment: .trailing)
+                }
             }
         }
         .padding(.horizontal, 14)
@@ -231,6 +310,7 @@ struct AppTable: View {
     }
 
     @ViewBuilder private func menu(_ app: AppUsage) -> some View {
+        Button("AI Deep Inspect") { store.selectedAppID = app.id }
         Button("Show Details") { store.selectedAppID = app.id }
         if app.kind != .system {
             Divider()
@@ -259,7 +339,7 @@ struct AppTable: View {
                     ForEach(columns) { c in
                         Text(p.measured || c == .gpu || c == .network ? c.format(c.value(p)) : "—")
                             .font(.system(size: 12)).monospacedDigit().foregroundStyle(Theme.inkSecondary)
-                            .frame(width: c == primary ? 170 : 92, alignment: .trailing)
+                            .frame(width: showDescription ? (c == primary ? 140 : 86) : (c == primary ? 170 : 92), alignment: .trailing)
                     }
                 }
                 .padding(.horizontal, 18)
