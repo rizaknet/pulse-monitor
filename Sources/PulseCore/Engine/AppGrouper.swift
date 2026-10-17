@@ -6,6 +6,22 @@ public enum AppGrouper {
 
     /// Finds the outermost `.app` in the path so helpers fold into the parent app.
     public static func outermostApp(_ path: String) -> String? {
+        // 1. Handle code_sign_clone and temporary sandboxed app bundles (e.g. Chrome, Chromium, Electron)
+        if let r = path.range(of: ".app.bundle/") {
+            let prefix = String(path[..<r.lowerBound])
+            let appName = (prefix as NSString).lastPathComponent
+            let standardPath = "/Applications/\(appName).app"
+            if FileManager.default.fileExists(atPath: standardPath) {
+                return standardPath
+            }
+            let userPath = ("~/Applications/\(appName).app" as NSString).expandingTildeInPath
+            if FileManager.default.fileExists(atPath: userPath) {
+                return userPath
+            }
+            return prefix + ".app"
+        }
+
+        // 2. Standard .app bundles
         guard let r = path.range(of: ".app/") else {
             return path.hasSuffix(".app") ? path : nil
         }
